@@ -131,6 +131,7 @@ export default function App() {
         me={me}
         users={users}
         groups={groups}
+        messages={messages}
         activeRoom={activeRoom}
         unread={unread}
         typing={typing}
@@ -143,6 +144,8 @@ export default function App() {
         roomKey={activeRoom}
         messages={messages[activeRoom] || []}
         typingNames={Object.keys(typing[activeRoom] || {})}
+        group={activeRoom?.startsWith("group:") ? groups.find((g) => `group:${g.name}` === activeRoom) : null}
+        onlineUsers={users}
         onSend={(text) => sendMessage({ text })}
         onSendFile={sendFile}
         onTyping={notifyTyping}
