@@ -67,26 +67,55 @@ io.on("connection", (socket) => {
 
   // R8: create group — ตอนสร้างมีแค่ผู้สร้างเป็นสมาชิก
   socket.on("group:create", ({ group } = {}, ack = () => {}) => {
-    // TODO(R8):
-    // 1. เช็กชื่อกลุ่มไม่ว่าง/ไม่ซ้ำ
-    // 2. groups.set(group, { name: group, owner: me, members: new Set([me]) })
-    // 3. socket.join(`group:${group}`)
-    // 4. broadcastGroups()  (R9)
-    ack({ ok: false, error: "Not implemented" });
+    const me = socket.data.name;
+    group = String(group ?? "").trim();
+
+    if (!me) return ack({ ok: false, error: "Not registered" });
+    if (!group) return ack({ ok: false, error: "Group name is required" });
+    if (groups.has(group)) return ack({ ok: false, error: "Group name already taken" });
+
+    // สมาชิกเริ่มต้นมีแค่ผู้สร้างคนเดียว (R8)
+    groups.set(group, { name: group, owner: me, members: new Set([me]) });
+    socket.join(`group:${group}`); // เข้า Socket.IO room ของกลุ่ม → จะได้รับ group:message
+
+    console.log(`[group:create] ${me} created "${group}"`);
+    ack({ ok: true });
+    broadcastGroups(); // R9: ทุกคนเห็นกลุ่มใหม่
   });
 
-  // R10: join group ด้วยตัวเอง
+  // R10: join group ด้วยตัวเอง — ไม่มี event ให้ใครเพิ่มคนอื่นเข้ากลุ่ม
   socket.on("group:join", ({ group } = {}, ack = () => {}) => {
-    // TODO(R10): เพิ่มตัวเองใน members, socket.join(`group:${group}`), broadcastGroups()
-    ack({ ok: false, error: "Not implemented" });
+    const me = socket.data.name;
+    const g = groups.get(group);
+
+    if (!me) return ack({ ok: false, error: "Not registered" });
+    if (!g) return ack({ ok: false, error: `Group "${group}" does not exist` });
+    if (g.members.has(me)) return ack({ ok: false, error: "Already a member" });
+
+    g.members.add(me); // เพิ่มได้แค่ตัวเอง (ใช้ชื่อจาก socket ไม่ใช่จาก payload)
+    socket.join(`group:${group}`);
+
+    console.log(`[group:join] ${me} joined "${group}"`);
+    ack({ ok: true });
+    broadcastGroups(); // R9: อัปเดตรายชื่อสมาชิกให้ทุกคน
   });
 
   // R11: group message — ส่งเฉพาะสมาชิก
   socket.on("group:send", ({ group, text } = {}, ack = () => {}) => {
-    // TODO(R11):
-    // 1. เช็กว่าเป็นสมาชิกของกลุ่ม
-    // 2. io.to(`group:${group}`).emit("group:message", { group, from, text, timestamp })
-    ack({ ok: false, error: "Not implemented" });
+    const from = socket.data.name;
+    const g = groups.get(group);
+    text = String(text ?? "").trim();
+
+    if (!from) return ack({ ok: false, error: "Not registered" });
+    if (!g) return ack({ ok: false, error: `Group "${group}" does not exist` });
+    if (!g.members.has(from)) return ack({ ok: false, error: "You are not a member of this group" });
+    if (!text) return ack({ ok: false, error: "Message is empty" });
+
+    // ส่งเข้า room ของกลุ่ม → เฉพาะ socket ที่ join room นี้ (= สมาชิก) ได้รับ
+    io.to(`group:${group}`).emit("group:message", { group, from, text, timestamp: Date.now() });
+
+    console.log(`[group] ${from} -> "${group}": ${text}`);
+    ack({ ok: true });
   });
 
   socket.on("disconnect", () => {
@@ -95,7 +124,14 @@ io.on("connection", (socket) => {
     users.delete(name);
     console.log(`[disconnect] ${name}`);
     broadcastUsers();
-    // TODO: ตัดสินใจว่าคนที่ออกยังเป็นสมาชิกกลุ่มอยู่ไหม (ถ้าลบ ให้ broadcastGroups())
+
+    // คนที่ออกไปจะหลุดจากทุกกลุ่ม (socket ใหม่ตอนกลับมาไม่ได้อยู่ใน room เดิม)
+    // กลุ่มยังอยู่ แม้สมาชิกจะเหลือ 0 คน คนอื่นยัง join ได้
+    let changed = false;
+    for (const g of groups.values()) {
+      if (g.members.delete(name)) changed = true;
+    }
+    if (changed) broadcastGroups();
   });
 });
 

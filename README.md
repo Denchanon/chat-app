@@ -41,10 +41,10 @@ npm run dev          # เปิดที่ http://<ip-เครื่องน
 | R5 | แต่ละแชทมีห้องของตัวเอง | `App.jsx` (room key) | ✅ UI |
 | R6 | chat box + chat window | `ChatRoom.jsx` | ✅ UI |
 | R7 | Private message | `private:send` | ✅ |
-| R8 | สร้างกลุ่ม | `group:create` | ⬜ server TODO |
-| R9 | เห็นทุกกลุ่ม + สมาชิก | `groups:list` | ⬜ (ต้องรอ R8) |
-| R10 | Join กลุ่มเอง | `group:join` | ⬜ server TODO |
-| R11 | Group message | `group:send` | ⬜ server TODO |
+| R8 | สร้างกลุ่ม | `group:create` | ✅ |
+| R9 | เห็นทุกกลุ่ม + สมาชิก | `groups:list` | ✅ |
+| R10 | Join กลุ่มเอง | `group:join` | ✅ |
+| R11 | Group message | `group:send` | ✅ |
 | SP1 | AI feature | — | ⬜ |
 | SP2–4 | Special points | — | ⬜ |
 
