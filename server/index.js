@@ -44,11 +44,25 @@ io.on("connection", (socket) => {
 
   // R7: private message — ส่งเฉพาะผู้ส่งและผู้รับ
   socket.on("private:send", ({ to, text } = {}, ack = () => {}) => {
-    // TODO(R7):
-    // 1. เช็กว่า socket.data.name มีแล้ว และ users มี `to`
-    // 2. สร้าง msg = { from, to, text, timestamp: Date.now() }
-    // 3. io.to(users.get(to)).emit("private:message", msg) และ socket.emit(...) ให้ผู้ส่ง
-    ack({ ok: false, error: "Not implemented" });
+    const from = socket.data.name;
+    text = String(text ?? "").trim();
+
+    // 1. ตรวจสอบ: ต้อง login แล้ว, มีข้อความ, ผู้รับต้อง online อยู่
+    if (!from) return ack({ ok: false, error: "Not registered" });
+    if (!text) return ack({ ok: false, error: "Message is empty" });
+    if (!users.has(to)) return ack({ ok: false, error: `User "${to}" is not online` });
+
+    const msg = { from, to, text, timestamp: Date.now() };
+
+    // 2. ส่งให้ผู้รับคนเดียว (หา socket id จากชื่อ)
+    io.to(users.get(to)).emit("private:message", msg);
+
+    // 3. ส่งคืนผู้ส่ง เพื่อให้เห็นข้อความตัวเองในห้อง (ถ้าส่งหาตัวเอง ไม่ต้องส่งซ้ำ)
+    if (to !== from) socket.emit("private:message", msg);
+
+    // คนอื่นที่ไม่ใช่ผู้ส่ง/ผู้รับ จะไม่ได้รับ event นี้เลย → R7 "only sender and receiver"
+    console.log(`[private] ${from} -> ${to}: ${text}`);
+    ack({ ok: true });
   });
 
   // R8: create group — ตอนสร้างมีแค่ผู้สร้างเป็นสมาชิก

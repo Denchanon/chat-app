@@ -40,7 +40,7 @@ npm run dev          # เปิดที่ http://<ip-เครื่องน
 | R4 | รายชื่อคนที่ online | `users:list`, `Sidebar.jsx` | ✅ |
 | R5 | แต่ละแชทมีห้องของตัวเอง | `App.jsx` (room key) | ✅ UI |
 | R6 | chat box + chat window | `ChatRoom.jsx` | ✅ UI |
-| R7 | Private message | `private:send` | ⬜ server TODO |
+| R7 | Private message | `private:send` | ✅ |
 | R8 | สร้างกลุ่ม | `group:create` | ⬜ server TODO |
 | R9 | เห็นทุกกลุ่ม + สมาชิก | `groups:list` | ⬜ (ต้องรอ R8) |
 | R10 | Join กลุ่มเอง | `group:join` | ⬜ server TODO |
