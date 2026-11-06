@@ -1,0 +1,43 @@
+// AI Bot — Special Point 1 (AI feature)
+// ใช้ Google Gemini API (https://ai.google.dev) ผ่าน HTTPS จากฝั่ง server เท่านั้น
+// API key อยู่ใน server/.env → ไม่เคยถูกส่งไปที่ client
+import { GoogleGenAI } from "@google/genai";
+
+export const BOT_NAME = "AI Bot";
+
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const MAX_HISTORY = 10; // จำข้อความล่าสุดกี่ข้อความต่อคน (user + bot)
+
+const SYSTEM_PROMPT = `You are "${BOT_NAME}", a friendly assistant inside a student chat application.
+Reply in the same language the user writes in (Thai or English).
+Keep answers short and conversational: at most a few sentences, plain text, no markdown headings.`;
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: { timeout: 30_000 }, // ถ้า API ไม่ตอบใน 30 วินาที ให้ error แทนการค้าง
+});
+
+// ประวัติแชทของแต่ละคนกับ bot: name -> [{ role: "user" | "model", parts: [{ text }] }]
+const histories = new Map();
+
+export async function askBot(userName, text) {
+  const history = histories.get(userName) ?? [];
+  const contents = [...history, { role: "user", parts: [{ text }] }];
+
+  const res = await ai.models.generateContent({
+    model: MODEL,
+    contents,
+    config: { systemInstruction: SYSTEM_PROMPT },
+  });
+
+  const reply = res.text?.trim() || "(ไม่มีคำตอบ)";
+
+  // บันทึกเฉพาะตอนสำเร็จ แล้วเก็บแค่ MAX_HISTORY ข้อความล่าสุด
+  contents.push({ role: "model", parts: [{ text: reply }] });
+  histories.set(userName, contents.slice(-MAX_HISTORY));
+  return reply;
+}
+
+export function forgetUser(userName) {
+  histories.delete(userName);
+}

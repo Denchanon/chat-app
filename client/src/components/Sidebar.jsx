@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+const BOT_NAME = "AI Bot"; // ต้องตรงกับ server/ai.js
+
 export default function Sidebar({ me, users, groups, activeRoom, onSelectRoom, onCreateGroup, onJoinGroup }) {
   const [newGroup, setNewGroup] = useState("");
 
@@ -23,7 +25,12 @@ export default function Sidebar({ me, users, groups, activeRoom, onSelectRoom, o
             className={activeRoom === `dm:${u}` ? "active" : ""}
             onClick={() => u !== me && onSelectRoom(`dm:${u}`)}
           >
-            {u} {u === me && <span className="tag">(you)</span>}
+            <span>
+              {u === BOT_NAME && "🤖 "}
+              {u}
+            </span>
+            {u === me && <span className="tag">(you)</span>}
+            {u === BOT_NAME && <span className="tag">AI</span>}
           </li>
         ))}
       </ul>

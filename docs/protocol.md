@@ -34,6 +34,13 @@
 - ส่ง `group:send` ได้เฉพาะกลุ่มที่ตัวเองเป็นสมาชิก (server ต้องเช็ก)
 - การกรองว่าใครเห็นข้อความ **ทำที่ server** ไม่ใช่ broadcast แล้วให้ client กรอง
 
+## AI Bot (Special Point 1)
+- `users:list` มี `"AI Bot"` อยู่ด้วยเสมอ และห้าม user คนไหน register ด้วยชื่อนี้
+- ส่งหา bot ใช้ `private:send` ตามปกติ โดยตั้ง `to: "AI Bot"`
+  - ack `{ ok: true }` ตอบกลับทันที (ไม่ต้องรอ AI) หรือตอบ `{ ok: false, error }` ถ้าคำถามก่อนหน้ายังตอบไม่เสร็จ
+  - server ส่ง `private:message` (ข้อความของ user) กลับให้ผู้ส่ง แล้วตามด้วย `private:message` จาก `"AI Bot"` เมื่อ AI ตอบ
+- server เรียก Gemini API ผ่าน HTTPS และจำข้อความล่าสุด 10 ข้อความต่อ user (ลบเมื่อ disconnect)
+
 ## ห้องแชทฝั่ง client (R5)
 - Private room key: `dm:<ชื่อคู่สนทนา>`
 - Group room key: `group:<ชื่อกลุ่ม>`

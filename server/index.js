@@ -1,6 +1,8 @@
 // Chat server — ดู event ทั้งหมดใน docs/protocol.md
+import "dotenv/config"; // โหลด server/.env (GEMINI_API_KEY, GEMINI_MODEL) — ต้องอยู่บรรทัดแรกก่อน import อื่น
 import { createServer } from "node:http";
 import { Server } from "socket.io";
+import { BOT_NAME, askBot, forgetUser } from "./ai.js";
 
 const PORT = process.env.PORT || 3001;
 
@@ -11,7 +13,10 @@ const io = new Server(httpServer, { cors: { origin: "*" } });
 const users = new Map(); // name -> socket.id
 const groups = new Map(); // groupName -> { name, owner, members: Set<string> }
 
-const userList = () => [...users.keys()];
+const botBusy = new Set(); // ชื่อคนที่กำลังรอคำตอบจาก bot (กันส่งรัว → โดน rate limit ของ free tier)
+
+// R4 + AI: bot แสดงในรายชื่อเหมือน user คนหนึ่ง
+const userList = () => [BOT_NAME, ...users.keys()];
 const groupList = () =>
   [...groups.values()].map((g) => ({ name: g.name, owner: g.owner, members: [...g.members] }));
 
@@ -19,7 +24,7 @@ const broadcastUsers = () => io.to("registered").emit("users:list", userList());
 const broadcastGroups = () => io.to("registered").emit("groups:list", groupList());
 
 const isNameTaken = (name) =>
-  [...users.keys()].some((n) => n.toLowerCase() === name.toLowerCase());
+  [BOT_NAME, ...users.keys()].some((n) => n.toLowerCase() === name.toLowerCase()); // ห้ามใช้ชื่อซ้ำกับ bot ด้วย
 
 // ---------- Connection ----------
 io.on("connection", (socket) => {
@@ -43,13 +48,18 @@ io.on("connection", (socket) => {
   });
 
   // R7: private message — ส่งเฉพาะผู้ส่งและผู้รับ
-  socket.on("private:send", ({ to, text } = {}, ack = () => {}) => {
+  socket.on("private:send", async ({ to, text } = {}, ack = () => {}) => {
     const from = socket.data.name;
     text = String(text ?? "").trim();
 
-    // 1. ตรวจสอบ: ต้อง login แล้ว, มีข้อความ, ผู้รับต้อง online อยู่
+    // 1. ตรวจสอบ: ต้อง login แล้ว, มีข้อความ
     if (!from) return ack({ ok: false, error: "Not registered" });
     if (!text) return ack({ ok: false, error: "Message is empty" });
+
+    // Special Point 1: แชทกับ AI Bot — ต้องเช็กก่อน users.has(to) เพราะ bot ไม่ได้อยู่ใน users
+    if (to === BOT_NAME) return handleBotMessage(from, text, ack);
+
+    // ผู้รับต้อง online อยู่
     if (!users.has(to)) return ack({ ok: false, error: `User "${to}" is not online` });
 
     const msg = { from, to, text, timestamp: Date.now() };
@@ -64,6 +74,30 @@ io.on("connection", (socket) => {
     console.log(`[private] ${from} -> ${to}: ${text}`);
     ack({ ok: true });
   });
+
+  // ส่งข้อความของ user ให้ AI แล้วส่งคำตอบกลับมาในห้อง DM เดียวกัน (เฉพาะ user คนนั้นเห็น)
+  async function handleBotMessage(from, text, ack) {
+    if (botBusy.has(from)) return ack({ ok: false, error: "AI Bot is still answering, please wait" });
+
+    socket.emit("private:message", { from, to: BOT_NAME, text, timestamp: Date.now() });
+    ack({ ok: true }); // ตอบ ack ทันที ไม่ต้องรอ AI → UI ไม่ค้าง
+    console.log(`[bot] ${from} -> ${BOT_NAME}: ${text}`);
+
+    botBusy.add(from);
+    let reply;
+    try {
+      reply = await askBot(from, text); // HTTPS → Gemini API
+    } catch (err) {
+      console.error(`[bot] error: ${err.message}`);
+      reply = "ขอโทษครับ ตอนนี้ AI ไม่ว่าง ลองใหม่อีกครั้งนะ";
+    } finally {
+      botBusy.delete(from);
+    }
+
+    // user อาจออกไปแล้วระหว่างรอ AI
+    if (!socket.connected) return;
+    socket.emit("private:message", { from: BOT_NAME, to: from, text: reply, timestamp: Date.now() });
+  }
 
   // R8: create group — ตอนสร้างมีแค่ผู้สร้างเป็นสมาชิก
   socket.on("group:create", ({ group } = {}, ack = () => {}) => {
@@ -122,6 +156,7 @@ io.on("connection", (socket) => {
     const name = socket.data.name;
     if (!name) return;
     users.delete(name);
+    forgetUser(name); // ลบประวัติแชทกับ bot
     console.log(`[disconnect] ${name}`);
     broadcastUsers();
 

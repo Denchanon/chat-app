@@ -15,6 +15,7 @@ Computer Network Term Project — Simple Chat Application (Socket Programming)
 # 1) Server (เครื่องที่เป็น server)
 cd server
 npm install
+cp .env.example .env # แล้วใส่ GEMINI_API_KEY (ขอที่ https://aistudio.google.com)
 npm start            # ฟังที่ 0.0.0.0:3001
 
 # 2) Client
@@ -46,7 +47,7 @@ npm run dev          # เปิดที่ http://<ip-เครื่องน
 | R9 | เห็นทุกกลุ่ม + สมาชิก | `groups:list` | ✅ |
 | R10 | Join กลุ่มเอง | `group:join` | ✅ |
 | R11 | Group message | `group:send` | ✅ |
-| SP1 | AI feature | — | ⬜ |
+| SP1 | AI Chatbot (Gemini) | `server/ai.js`, `private:send` → `AI Bot` | ✅ |
 | SP2–4 | Special points | — | ⬜ |
 
 ## Workflow ของทีม

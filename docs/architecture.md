@@ -66,7 +66,7 @@
   - **HTTP ไม่ได้ใช้ส่งข้อความแชท**
   - ถ้าเปิด DevTools → Network จะเห็น WebSocket อีกตัวที่ port `5173` ตัวนั้นเป็นของ Vite (hot-reload ตอน dev) ไม่เกี่ยวกับแชท WebSocket ของแชทคือตัวที่ port `3001`
 
-### 5. HTTPS (Part 3: AI feature)
+### 5. HTTPS (Part 3: AI Bot ใช้ Google Gemini API)
 - **คืออะไร:** HTTP ที่เข้ารหัสด้วย TLS
 - **ทำไมเลือก:** API ของ AI ภายนอกบังคับใช้ และช่วยปกป้อง API key ระหว่างทาง
 - **ใช้ยังไง:** **server** เป็นคนเรียก AI API ไม่ใช่ client ทำให้ API key อยู่แค่บน server (เก็บใน `.env`) แล้วส่งผลลัพธ์กลับไปหา client ผ่าน socket ตามปกติ
