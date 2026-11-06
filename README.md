@@ -48,7 +48,9 @@ npm run dev          # เปิดที่ http://<ip-เครื่องน
 | R10 | Join กลุ่มเอง | `group:join` | ✅ |
 | R11 | Group message | `group:send` | ✅ |
 | SP1 | AI Chatbot (Gemini) | `server/ai.js`, `private:send` → `AI Bot` | ✅ |
-| SP2–4 | Special points | — | ⬜ |
+| SP2 | Typing indicator | `typing` event, `ChatRoom.jsx` | ✅ |
+| SP3 | Unread badge | `App.jsx` (`unread`), `Sidebar.jsx` | ✅ |
+| SP4 | ส่งรูป/ไฟล์ (≤ 5 MB) | `checkFile` ใน server, `ChatRoom.jsx` | ✅ |
 
 ## Workflow ของทีม
 - แตก branch จาก `main` ตามฟีเจอร์ เช่น `feature/private-chat`, `feature/groups`, `feature/ai`

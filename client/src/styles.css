@@ -24,3 +24,17 @@ input { padding: 8px; border: 1px solid #ccc; border-radius: 6px; flex: 1; }
 .from { font-size: 12px; font-weight: bold; color: #4f46e5; }
 .time { font-size: 10px; color: #999; align-self: flex-end; }
 .chat-box { display: flex; gap: 8px; padding: 12px; background: #fff; border-top: 1px solid #ddd; }
+
+/* SP2: typing indicator */
+.typing-bar { height: 22px; padding: 0 16px; font-size: 13px; color: #6b7280; font-style: italic; }
+.typing-hint { font-size: 12px; color: #16a34a; font-style: italic; }
+
+/* SP3: unread badge */
+.right { display: flex; align-items: center; gap: 6px; }
+.badge { background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; }
+
+/* SP4: attachments */
+.attachment-img { max-width: 260px; max-height: 260px; border-radius: 8px; margin-top: 4px; display: block; }
+.attachment-file { margin-top: 4px; color: #4f46e5; text-decoration: none; }
+.attachment-file:hover { text-decoration: underline; }
+.chat-box .attach { background: #eef2ff; color: #4f46e5; font-size: 18px; padding: 4px 10px; }

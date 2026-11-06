@@ -6,8 +6,13 @@ import { BOT_NAME, askBot, forgetUser, mentionsBot, askBotInGroup } from "./ai.j
 
 const PORT = process.env.PORT || 3001;
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // SP4: ไฟล์ใหญ่สุด 5 MB
+
 const httpServer = createServer();
-const io = new Server(httpServer, { cors: { origin: "*" } });
+const io = new Server(httpServer, {
+  cors: { origin: "*" },
+  maxHttpBufferSize: MAX_FILE_SIZE + 1024 * 1024, // ค่าเริ่มต้น 1 MB → ขยายให้ส่งไฟล์ได้ (+เผื่อ metadata)
+});
 
 // ---------- State ----------
 const users = new Map(); // name -> socket.id
@@ -30,6 +35,29 @@ const groupList = () =>
 
 const broadcastUsers = () => io.to("registered").emit("users:list", userList());
 const broadcastGroups = () => io.to("registered").emit("groups:list", groupList());
+
+// SP4: ตรวจไฟล์ที่แนบมา → คืน { file } ถ้าผ่าน, { error } ถ้าไม่ผ่าน, {} ถ้าไม่มีไฟล์
+// Socket.IO ส่ง binary ได้ในตัว: ArrayBuffer จาก browser มาถึง server เป็น Buffer
+function checkFile(raw) {
+  if (!raw) return {};
+  if (!Buffer.isBuffer(raw.data)) return { error: "Invalid file" };
+  if (raw.data.length > MAX_FILE_SIZE) return { error: "File is larger than 5 MB" };
+  return {
+    file: {
+      name: String(raw.name ?? "file").slice(0, 200),
+      type: String(raw.type || "application/octet-stream"),
+      size: raw.data.length,
+      data: raw.data,
+    },
+  };
+}
+
+// SP2: bot ส่งสถานะ "กำลังพิมพ์" ซ้ำทุก 2 วินาทีระหว่างรอ AI → คืนฟังก์ชันสำหรับหยุด
+function startBotTyping(emitTyping) {
+  emitTyping();
+  const timer = setInterval(emitTyping, 2000);
+  return () => clearInterval(timer);
+}
 
 const isNameTaken = (name) =>
   [BOT_NAME, ...users.keys()].some((n) => n.toLowerCase() === name.toLowerCase()); // ห้ามใช้ชื่อซ้ำกับ bot ด้วย
@@ -56,21 +84,26 @@ io.on("connection", (socket) => {
   });
 
   // R7: private message — ส่งเฉพาะผู้ส่งและผู้รับ
-  socket.on("private:send", async ({ to, text } = {}, ack = () => {}) => {
+  socket.on("private:send", async ({ to, text, file: rawFile } = {}, ack = () => {}) => {
     const from = socket.data.name;
     text = String(text ?? "").trim();
+    const { file, error: fileError } = checkFile(rawFile); // SP4
 
-    // 1. ตรวจสอบ: ต้อง login แล้ว, มีข้อความ
+    // 1. ตรวจสอบ: ต้อง login แล้ว, มีข้อความหรือไฟล์
     if (!from) return ack({ ok: false, error: "Not registered" });
-    if (!text) return ack({ ok: false, error: "Message is empty" });
+    if (fileError) return ack({ ok: false, error: fileError });
+    if (!text && !file) return ack({ ok: false, error: "Message is empty" });
 
     // Special Point 1: แชทกับ AI Bot — ต้องเช็กก่อน users.has(to) เพราะ bot ไม่ได้อยู่ใน users
-    if (to === BOT_NAME) return handleBotMessage(from, text, ack);
+    if (to === BOT_NAME) {
+      if (file) return ack({ ok: false, error: "AI Bot can only read text messages" });
+      return handleBotMessage(from, text, ack);
+    }
 
     // ผู้รับต้อง online อยู่
     if (!users.has(to)) return ack({ ok: false, error: `User "${to}" is not online` });
 
-    const msg = { from, to, text, timestamp: Date.now() };
+    const msg = { from, to, text, file, timestamp: Date.now() };
 
     // 2. ส่งให้ผู้รับคนเดียว (หา socket id จากชื่อ)
     io.to(users.get(to)).emit("private:message", msg);
@@ -79,7 +112,7 @@ io.on("connection", (socket) => {
     if (to !== from) socket.emit("private:message", msg);
 
     // คนอื่นที่ไม่ใช่ผู้ส่ง/ผู้รับ จะไม่ได้รับ event นี้เลย → R7 "only sender and receiver"
-    console.log(`[private] ${from} -> ${to}: ${text}`);
+    console.log(`[private] ${from} -> ${to}: ${text}${file ? ` [file ${file.name}, ${file.size} B]` : ""}`);
     ack({ ok: true });
   });
 
@@ -92,6 +125,7 @@ io.on("connection", (socket) => {
     console.log(`[bot] ${from} -> ${BOT_NAME}: ${text}`);
 
     botBusy.add(from);
+    const stopTyping = startBotTyping(() => socket.emit("typing", { room: `dm:${BOT_NAME}`, from: BOT_NAME }));
     let reply;
     try {
       reply = await askBot(from, text); // HTTPS → Gemini API
@@ -99,6 +133,7 @@ io.on("connection", (socket) => {
       console.error(`[bot] error: ${err.message}`);
       reply = "ขอโทษครับ ตอนนี้ AI ไม่ว่าง ลองใหม่อีกครั้งนะ";
     } finally {
+      stopTyping();
       botBusy.delete(from);
     }
 
@@ -143,21 +178,23 @@ io.on("connection", (socket) => {
   });
 
   // R11: group message — ส่งเฉพาะสมาชิก
-  socket.on("group:send", ({ group, text } = {}, ack = () => {}) => {
+  socket.on("group:send", ({ group, text, file: rawFile } = {}, ack = () => {}) => {
     const from = socket.data.name;
     const g = groups.get(group);
     text = String(text ?? "").trim();
+    const { file, error: fileError } = checkFile(rawFile); // SP4
 
     if (!from) return ack({ ok: false, error: "Not registered" });
     if (!g) return ack({ ok: false, error: `Group "${group}" does not exist` });
     if (!g.members.has(from)) return ack({ ok: false, error: "You are not a member of this group" });
-    if (!text) return ack({ ok: false, error: "Message is empty" });
+    if (fileError) return ack({ ok: false, error: fileError });
+    if (!text && !file) return ack({ ok: false, error: "Message is empty" });
 
     // ส่งเข้า room ของกลุ่ม → เฉพาะ socket ที่ join room นี้ (= สมาชิก) ได้รับ
-    io.to(`group:${group}`).emit("group:message", { group, from, text, timestamp: Date.now() });
-    logGroupMessage(group, from, text);
+    io.to(`group:${group}`).emit("group:message", { group, from, text, file, timestamp: Date.now() });
+    logGroupMessage(group, from, [text, file && `[ส่งไฟล์ ${file.name}]`].filter(Boolean).join(" "));
 
-    console.log(`[group] ${from} -> "${group}": ${text}`);
+    console.log(`[group] ${from} -> "${group}": ${text}${file ? ` [file ${file.name}, ${file.size} B]` : ""}`);
     ack({ ok: true });
 
     // Special Point 1: ถ้าข้อความมี @bot → ให้ AI ตอบในกลุ่ม
@@ -175,15 +212,36 @@ io.on("connection", (socket) => {
     if (botBusy.has(busyKey)) return send(`ขอเวลาแป๊บนะ ${from} กำลังตอบคำถามก่อนหน้าอยู่`);
 
     botBusy.add(busyKey);
+    const stopTyping = startBotTyping(() => io.to(busyKey).emit("typing", { room: busyKey, from: BOT_NAME }));
     try {
-      send(await askBotInGroup(group, groupLogs.get(group) ?? [], from, text)); // HTTPS → Gemini API
+      const reply = await askBotInGroup(group, groupLogs.get(group) ?? [], from, text); // HTTPS → Gemini API
+      stopTyping();
+      send(reply);
     } catch (err) {
+      stopTyping();
       console.error(`[bot] group error: ${err.message}`);
       send("ขอโทษครับ ตอนนี้ AI ไม่ว่าง ลองใหม่อีกครั้งนะ");
     } finally {
       botBusy.delete(busyKey);
     }
   }
+
+  // SP2: Typing indicator — ส่งต่อสถานะ "กำลังพิมพ์" ให้เฉพาะคนที่อยู่ในห้องเดียวกัน (ไม่ต้องมี ack)
+  // room ฝั่งผู้ส่ง: "dm:<คู่สนทนา>" หรือ "group:<ชื่อกลุ่ม>"
+  socket.on("typing", ({ room } = {}) => {
+    const from = socket.data.name;
+    if (!from || typeof room !== "string") return;
+
+    if (room.startsWith("dm:")) {
+      const to = room.slice(3);
+      // ฝั่งผู้รับ ห้องนี้คือ "dm:<ชื่อผู้ส่ง>"
+      if (users.has(to)) io.to(users.get(to)).emit("typing", { room: `dm:${from}`, from });
+    } else if (room.startsWith("group:")) {
+      const g = groups.get(room.slice(6));
+      // socket.to(...) = ส่งให้ทุกคนใน room ยกเว้นตัวเอง
+      if (g?.members.has(from)) socket.to(room).emit("typing", { room, from });
+    }
+  });
 
   socket.on("disconnect", () => {
     const name = socket.data.name;
