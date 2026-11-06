@@ -41,3 +41,31 @@ export async function askBot(userName, text) {
 export function forgetUser(userName) {
   histories.delete(userName);
 }
+
+// ---------- Group chat: เรียกด้วย @bot ----------
+// ตรงกับ "@bot", "@Bot", "@ai bot", "@AIBot" ฯลฯ
+const MENTION_RE = /@(ai\s*)?bot\b/i;
+
+export const mentionsBot = (text) => MENTION_RE.test(text);
+
+// transcript = ข้อความล่าสุดในกลุ่ม [{ from, text }] (รวมข้อความที่เพิ่งส่งมาด้วย)
+// bot เห็นแชทล่าสุดของกลุ่ม → ตอบคำถามที่อ้างถึงบทสนทนาได้ เช่น "@bot สรุปแชทให้หน่อย"
+export async function askBotInGroup(groupName, transcript, from, text) {
+  const question = text.replace(MENTION_RE, "").trim() || "(ทักทาย)";
+  const chatLog = transcript.map((m) => `${m.from}: ${m.text}`).join("\n");
+
+  const prompt = `Recent messages in group chat "${groupName}":
+${chatLog}
+
+${from} mentioned you and asked: ${question}`;
+
+  const res = await ai.models.generateContent({
+    model: MODEL,
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: {
+      systemInstruction: `${SYSTEM_PROMPT}
+You are in a group chat. Use the recent messages as context. Address ${from} by name when it fits.`,
+    },
+  });
+  return res.text?.trim() || "(ไม่มีคำตอบ)";
+}

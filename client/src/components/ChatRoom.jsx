@@ -36,7 +36,9 @@ export default function ChatRoom({ me, roomKey, messages, onSend }) {
       </div>
 
       <form className="chat-box" onSubmit={submit}>
-        <input placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} />
+        <input
+          placeholder={roomKey.startsWith("group:") ? "Type a message... (พิมพ์ @bot เพื่อถาม AI)" : "Type a message..."}
+          value={text} onChange={(e) => setText(e.target.value)} />
         <button type="submit">Send</button>
       </form>
     </main>

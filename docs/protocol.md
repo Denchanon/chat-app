@@ -40,6 +40,7 @@
   - ack `{ ok: true }` ตอบกลับทันที (ไม่ต้องรอ AI) หรือตอบ `{ ok: false, error }` ถ้าคำถามก่อนหน้ายังตอบไม่เสร็จ
   - server ส่ง `private:message` (ข้อความของ user) กลับให้ผู้ส่ง แล้วตามด้วย `private:message` จาก `"AI Bot"` เมื่อ AI ตอบ
 - server เรียก Gemini API ผ่าน HTTPS และจำข้อความล่าสุด 10 ข้อความต่อ user (ลบเมื่อ disconnect)
+- **ในกลุ่ม:** ใช้ `group:send` ตามปกติ ถ้าข้อความมี `@bot` (หรือ `@AI Bot`) server จะส่งข้อความล่าสุด 30 ข้อความของกลุ่มให้ AI แล้ว emit `group:message` จาก `"AI Bot"` เข้า room ของกลุ่ม ทำให้สมาชิกเท่านั้นที่เห็น (bot ไม่ได้เป็นสมาชิกกลุ่ม)
 
 ## ห้องแชทฝั่ง client (R5)
 - Private room key: `dm:<ชื่อคู่สนทนา>`

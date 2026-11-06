@@ -2,7 +2,7 @@
 import "dotenv/config"; // โหลด server/.env (GEMINI_API_KEY, GEMINI_MODEL) — ต้องอยู่บรรทัดแรกก่อน import อื่น
 import { createServer } from "node:http";
 import { Server } from "socket.io";
-import { BOT_NAME, askBot, forgetUser } from "./ai.js";
+import { BOT_NAME, askBot, forgetUser, mentionsBot, askBotInGroup } from "./ai.js";
 
 const PORT = process.env.PORT || 3001;
 
@@ -13,7 +13,15 @@ const io = new Server(httpServer, { cors: { origin: "*" } });
 const users = new Map(); // name -> socket.id
 const groups = new Map(); // groupName -> { name, owner, members: Set<string> }
 
-const botBusy = new Set(); // ชื่อคนที่กำลังรอคำตอบจาก bot (กันส่งรัว → โดน rate limit ของ free tier)
+const botBusy = new Set(); // ชื่อคน / "group:<name>" ที่กำลังรอคำตอบจาก bot (กันส่งรัว → โดน rate limit ของ free tier)
+const groupLogs = new Map(); // groupName -> ข้อความล่าสุด [{ from, text }] ให้ bot ใช้เป็น context
+const GROUP_LOG_SIZE = 30;
+
+function logGroupMessage(group, from, text) {
+  const log = groupLogs.get(group) ?? [];
+  log.push({ from, text });
+  groupLogs.set(group, log.slice(-GROUP_LOG_SIZE));
+}
 
 // R4 + AI: bot แสดงในรายชื่อเหมือน user คนหนึ่ง
 const userList = () => [BOT_NAME, ...users.keys()];
@@ -147,10 +155,35 @@ io.on("connection", (socket) => {
 
     // ส่งเข้า room ของกลุ่ม → เฉพาะ socket ที่ join room นี้ (= สมาชิก) ได้รับ
     io.to(`group:${group}`).emit("group:message", { group, from, text, timestamp: Date.now() });
+    logGroupMessage(group, from, text);
 
     console.log(`[group] ${from} -> "${group}": ${text}`);
     ack({ ok: true });
+
+    // Special Point 1: ถ้าข้อความมี @bot → ให้ AI ตอบในกลุ่ม
+    if (mentionsBot(text)) replyBotInGroup(group, from, text);
   });
+
+  // bot ตอบในกลุ่ม — ส่งเข้า room ของกลุ่มเหมือนข้อความปกติ → สมาชิกเท่านั้นที่เห็น (R11 ยังเป็นจริง)
+  async function replyBotInGroup(group, from, text) {
+    const busyKey = `group:${group}`;
+    const send = (reply) => {
+      io.to(busyKey).emit("group:message", { group, from: BOT_NAME, text: reply, timestamp: Date.now() });
+      logGroupMessage(group, BOT_NAME, reply);
+    };
+
+    if (botBusy.has(busyKey)) return send(`ขอเวลาแป๊บนะ ${from} กำลังตอบคำถามก่อนหน้าอยู่`);
+
+    botBusy.add(busyKey);
+    try {
+      send(await askBotInGroup(group, groupLogs.get(group) ?? [], from, text)); // HTTPS → Gemini API
+    } catch (err) {
+      console.error(`[bot] group error: ${err.message}`);
+      send("ขอโทษครับ ตอนนี้ AI ไม่ว่าง ลองใหม่อีกครั้งนะ");
+    } finally {
+      botBusy.delete(busyKey);
+    }
+  }
 
   socket.on("disconnect", () => {
     const name = socket.data.name;
