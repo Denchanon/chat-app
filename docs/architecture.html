@@ -1,0 +1,160 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Chat App — System Architecture</title>
+<style>
+  body { margin: 0; background: #fff; font-family: "Inter", "Segoe UI", system-ui, sans-serif; }
+  svg text { font-family: inherit; }
+</style>
+</head>
+<body>
+<svg id="diagram" width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4f46e5"/>
+    </marker>
+    <marker id="arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#d97706"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="40" y="52" font-size="30" font-weight="700" fill="#0f172a">Chat Application — System Architecture</text>
+  <text x="40" y="82" font-size="16" fill="#64748b">Clients on separate physical machines connect to one server over the same LAN / Wi-Fi</text>
+
+  <!-- LAN band -->
+  <rect x="470" y="110" width="200" height="560" rx="14" fill="#f1f5f9" stroke="#cbd5e1" stroke-dasharray="6 6"/>
+  <text x="570" y="140" font-size="15" font-weight="700" fill="#475569" text-anchor="middle">LAN / Wi-Fi</text>
+  <text x="570" y="160" font-size="13" fill="#64748b" text-anchor="middle">IPv4 network</text>
+
+  <!-- ===== Client machines ===== -->
+  <g>
+    <rect x="40" y="120" width="380" height="240" rx="16" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
+    <text x="60" y="152" font-size="18" font-weight="700" fill="#3730a3">Client — Computer 1</text>
+    <text x="60" y="174" font-size="13" fill="#6366f1">e.g. 192.168.1.21 · user "Den"</text>
+    <rect x="60" y="192" width="340" height="148" rx="10" fill="#fff" stroke="#c7d2fe"/>
+    <text x="78" y="220" font-size="15" font-weight="700" fill="#1e293b">Web Browser</text>
+    <text x="78" y="244" font-size="13" fill="#334155">React UI (Login · Sidebar · ChatRoom)</text>
+    <text x="78" y="266" font-size="13" fill="#334155">socket.io-client</text>
+    <text x="78" y="288" font-size="13" fill="#334155">Chat rooms kept per key:</text>
+    <text x="78" y="308" font-size="13" fill="#4f46e5" font-family="monospace">dm:&lt;name&gt; · group:&lt;name&gt;</text>
+  </g>
+
+  <g>
+    <rect x="40" y="420" width="380" height="240" rx="16" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
+    <text x="60" y="452" font-size="18" font-weight="700" fill="#3730a3">Client — Computer 2</text>
+    <text x="60" y="474" font-size="13" fill="#6366f1">e.g. 192.168.1.35 · user "Mint"</text>
+    <rect x="60" y="492" width="340" height="148" rx="10" fill="#fff" stroke="#c7d2fe"/>
+    <text x="78" y="520" font-size="15" font-weight="700" fill="#1e293b">Web Browser</text>
+    <text x="78" y="544" font-size="13" fill="#334155">React UI (Login · Sidebar · ChatRoom)</text>
+    <text x="78" y="566" font-size="13" fill="#334155">socket.io-client</text>
+    <text x="78" y="588" font-size="13" fill="#334155">Chat rooms kept per key:</text>
+    <text x="78" y="608" font-size="13" fill="#4f46e5" font-family="monospace">dm:&lt;name&gt; · group:&lt;name&gt;</text>
+  </g>
+  <text x="230" y="690" font-size="14" fill="#64748b" text-anchor="middle">… more clients (Computer N)</text>
+
+  <!-- ===== Server machine ===== -->
+  <rect x="720" y="110" width="840" height="560" rx="18" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="745" y="145" font-size="20" font-weight="700" fill="#166534">Server Machine</text>
+  <text x="745" y="167" font-size="13" fill="#16a34a">e.g. 192.168.1.10 · may be one of the client machines or a separate one</text>
+
+  <!-- Vite web server -->
+  <rect x="745" y="190" width="300" height="120" rx="12" fill="#fff" stroke="#94a3b8"/>
+  <text x="765" y="220" font-size="16" font-weight="700" fill="#1e293b">Web Server (Vite)</text>
+  <text x="765" y="244" font-size="13" fill="#334155">HTTP · port 5173</text>
+  <text x="765" y="266" font-size="13" fill="#334155">Serves the client app</text>
+  <text x="765" y="286" font-size="13" fill="#334155">(HTML / JS / CSS) once</text>
+
+  <!-- Socket.IO server -->
+  <rect x="745" y="335" width="790" height="310" rx="12" fill="#fff" stroke="#16a34a" stroke-width="2"/>
+  <text x="765" y="366" font-size="17" font-weight="700" fill="#14532d">Chat Server — Node.js + Socket.IO</text>
+  <text x="765" y="388" font-size="13" fill="#166534">WebSocket over TCP · port 3001 · server/index.js</text>
+
+  <!-- event handlers -->
+  <rect x="765" y="405" width="360" height="222" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="783" y="430" font-size="14" font-weight="700" fill="#1e293b">Event handlers</text>
+  <g font-size="13" font-family="monospace" fill="#334155">
+    <text x="783" y="456">register       → R3 unique name</text>
+    <text x="783" y="480">private:send   → R7</text>
+    <text x="783" y="504">group:create   → R8</text>
+    <text x="783" y="528">group:join     → R10</text>
+    <text x="783" y="552">group:send     → R11</text>
+    <text x="783" y="576">users:list     ← R4 (broadcast)</text>
+    <text x="783" y="600">groups:list    ← R9 (broadcast)</text>
+  </g>
+
+  <!-- state -->
+  <rect x="1145" y="405" width="370" height="222" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="1163" y="430" font-size="14" font-weight="700" fill="#1e293b">In-memory state &amp; routing</text>
+  <g font-size="13" fill="#334155">
+    <text x="1163" y="458" font-family="monospace">users</text>
+    <text x="1225" y="458">name → socket.id</text>
+    <text x="1163" y="482" font-family="monospace">groups</text>
+    <text x="1225" y="482">name → owner, members</text>
+    <text x="1163" y="514" font-weight="700" fill="#1e293b">Delivery targets</text>
+    <text x="1163" y="540" font-family="monospace">io.to(socket.id)</text>
+    <text x="1340" y="540">private (1 user)</text>
+    <text x="1163" y="564" font-family="monospace">io.to("group:X")</text>
+    <text x="1340" y="564">group members</text>
+    <text x="1163" y="588" font-family="monospace">io.to("registered")</text>
+    <text x="1340" y="588">all online users</text>
+  </g>
+
+  <!-- AI API (Part 3) -->
+  <rect x="1100" y="190" width="435" height="120" rx="12" fill="#fffbeb" stroke="#d97706" stroke-dasharray="7 5" stroke-width="2"/>
+  <text x="1120" y="220" font-size="16" font-weight="700" fill="#92400e">External AI API  (Part 3 · planned)</text>
+  <text x="1120" y="244" font-size="13" fill="#78350f">HTTPS (TLS over TCP · port 443)</text>
+  <text x="1120" y="266" font-size="13" fill="#78350f">Called by the server only — API key never</text>
+  <text x="1120" y="286" font-size="13" fill="#78350f">reaches the clients</text>
+  <line x1="1320" y1="335" x2="1320" y2="315" stroke="#d97706" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arro)"/>
+
+  <!-- ===== Connections ===== -->
+  <!-- HTTP page load (dashed grey) -->
+  <path d="M420,205 C560,205 600,230 742,235" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrg)"/>
+  <path d="M420,440 C560,440 620,290 742,280" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arrg)"/>
+  <rect x="490" y="186" width="160" height="40" rx="8" fill="#fff" stroke="#cbd5e1"/>
+  <text x="570" y="203" font-size="12" font-weight="700" fill="#475569" text-anchor="middle">① HTTP GET</text>
+  <text x="570" y="219" font-size="11" fill="#64748b" text-anchor="middle">load web app (once)</text>
+
+  <!-- WebSocket (solid, bidirectional) -->
+  <path d="M420,320 C590,320 600,450 742,460" fill="none" stroke="#4f46e5" stroke-width="3.5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <path d="M420,620 C590,620 600,520 742,510" fill="none" stroke="#4f46e5" stroke-width="3.5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="480" y="466" width="180" height="58" rx="8" fill="#fff" stroke="#a5b4fc"/>
+  <text x="570" y="486" font-size="12" font-weight="700" fill="#3730a3" text-anchor="middle">② WebSocket / TCP</text>
+  <text x="570" y="502" font-size="11" fill="#4f46e5" text-anchor="middle">persistent, full-duplex</text>
+  <text x="570" y="517" font-size="11" fill="#4f46e5" text-anchor="middle">all chat events (R2)</text>
+
+  <!-- ===== Protocol stack strip ===== -->
+  <text x="40" y="740" font-size="17" font-weight="700" fill="#0f172a">Protocol stack</text>
+  <g font-size="13">
+    <rect x="40" y="755" width="370" height="110" rx="10" fill="#eef2ff" stroke="#c7d2fe"/>
+    <text x="58" y="781" font-weight="700" fill="#3730a3">Application</text>
+    <text x="58" y="805" fill="#334155">Socket.IO events (JSON) on WebSocket</text>
+    <text x="58" y="827" fill="#334155">HTTP — load client page &amp; WS upgrade</text>
+    <text x="58" y="849" fill="#334155">HTTPS — server → AI API (Part 3)</text>
+
+    <rect x="425" y="755" width="370" height="110" rx="10" fill="#f0fdf4" stroke="#bbf7d0"/>
+    <text x="443" y="781" font-weight="700" fill="#166534">Transport — TCP</text>
+    <text x="443" y="805" fill="#334155">Reliable, in-order delivery</text>
+    <text x="443" y="827" fill="#334155">No lost / reordered chat messages</text>
+    <text x="443" y="849" fill="#334155">Ports 3001 (chat) · 5173 (web)</text>
+
+    <rect x="810" y="755" width="370" height="110" rx="10" fill="#fffbeb" stroke="#fde68a"/>
+    <text x="828" y="781" font-weight="700" fill="#92400e">Network — IPv4</text>
+    <text x="828" y="805" fill="#334155">Each machine has its own LAN IP</text>
+    <text x="828" y="827" fill="#334155">Clients address the server by IP</text>
+    <text x="828" y="849" fill="#334155">e.g. http://192.168.1.10:3001</text>
+
+    <rect x="1195" y="755" width="365" height="110" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+    <text x="1213" y="781" font-weight="700" fill="#334155">Link / Physical</text>
+    <text x="1213" y="805" fill="#334155">Wi-Fi (802.11) or Ethernet</text>
+    <text x="1213" y="827" fill="#334155">All machines on the same</text>
+    <text x="1213" y="849" fill="#334155">local network</text>
+  </g>
+</svg>
+</body>
+</html>

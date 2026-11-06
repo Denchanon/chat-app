@@ -5,6 +5,7 @@ Computer Network Term Project — Simple Chat Application (Socket Programming)
 - **Server:** Node.js + [Socket.IO](https://socket.io/) (`server/`)
 - **Client:** React + Vite + socket.io-client (`client/`)
 - **Protocol:** ดู [`docs/protocol.md`](docs/protocol.md) ก่อนเขียนโค้ดทุกครั้ง
+- **Architecture (R1):** [`docs/architecture.md`](docs/architecture.md)
 
 ## วิธีรัน
 
@@ -34,7 +35,7 @@ npm run dev          # เปิดที่ http://<ip-เครื่องน
 
 | Req | รายละเอียด | ไฟล์หลัก | สถานะ |
 |---|---|---|---|
-| R1 | Architecture diagram + อธิบาย protocol | สไลด์ | ⬜ |
+| R1 | Architecture diagram + อธิบาย protocol | [`docs/architecture.md`](docs/architecture.md) | ✅ |
 | R2 | ข้อความผ่าน socket เท่านั้น | `server/index.js` | ✅ |
 | R3 | ชื่อไม่ซ้ำ | `server/index.js` `register` | ✅ |
 | R4 | รายชื่อคนที่ online | `users:list`, `Sidebar.jsx` | ✅ |

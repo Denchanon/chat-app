@@ -5,4 +5,6 @@ import { io } from "socket.io-client";
 const SERVER_URL =
   import.meta.env.VITE_SERVER_URL || `http://${window.location.hostname}:3001`;
 
-export const socket = io(SERVER_URL, { autoConnect: false });
+// transports: ["websocket"] → เปิด WebSocket ตรงๆ (ข้าม HTTP long-polling ของ Socket.IO)
+// ข้อความแชททั้งหมดจึงวิ่งผ่าน WebSocket connection เดียวที่ค้างไว้ (R2)
+export const socket = io(SERVER_URL, { autoConnect: false, transports: ["websocket"] });
