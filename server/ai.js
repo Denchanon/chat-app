@@ -6,6 +6,9 @@ import { GoogleGenAI } from "@google/genai";
 export const BOT_NAME = "AI Bot";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+// (ไม่บังคับ) model สำรอง ใช้เมื่อ model หลักคนใช้เยอะจนตอบไม่ได้ เช่น model ตระกูล flash-lite
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || null;
+const RETRY_DELAYS = [1000, 3000]; // ลองใหม่ 2 ครั้ง ห่าง 1 และ 3 วินาที
 const MAX_HISTORY = 10; // จำข้อความล่าสุดกี่ข้อความต่อคน (user + bot)
 
 const SYSTEM_PROMPT = `You are "${BOT_NAME}", a friendly assistant inside a student chat application.
@@ -17,6 +20,34 @@ const ai = new GoogleGenAI({
   httpOptions: { timeout: 30_000 }, // ถ้า API ไม่ตอบใน 30 วินาที ให้ error แทนการค้าง
 });
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// 503 = model คนใช้เยอะชั่วคราว, 429 = เกิน rate limit, 500 = Google error ชั่วคราว → ลองใหม่ได้
+const isRetryable = (err) => [429, 500, 503].includes(err?.status);
+
+// เรียก Gemini พร้อม retry และสลับไป model สำรองถ้า model หลักยังล่ม
+async function generate(params) {
+  const models = FALLBACK_MODEL ? [MODEL, FALLBACK_MODEL] : [MODEL];
+  let lastErr;
+  for (const model of models) {
+    for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+      try {
+        const res = await ai.models.generateContent({ ...params, model });
+        if (model !== MODEL) console.log(`[bot] answered with fallback model ${model}`);
+        return res;
+      } catch (err) {
+        lastErr = err;
+        if (!isRetryable(err)) throw err; // เช่น key ผิด / ชื่อ model ผิด → ลองใหม่ก็ไม่หาย
+        const delay = RETRY_DELAYS[attempt];
+        if (delay === undefined) break; // ครบจำนวนครั้งของ model นี้แล้ว → ไป model ถัดไป
+        console.warn(`[bot] ${model} returned ${err.status}, retrying in ${delay / 1000}s`);
+        await sleep(delay);
+      }
+    }
+  }
+  throw lastErr;
+}
+
 // ประวัติแชทของแต่ละคนกับ bot: name -> [{ role: "user" | "model", parts: [{ text }] }]
 const histories = new Map();
 
@@ -24,8 +55,7 @@ export async function askBot(userName, text) {
   const history = histories.get(userName) ?? [];
   const contents = [...history, { role: "user", parts: [{ text }] }];
 
-  const res = await ai.models.generateContent({
-    model: MODEL,
+  const res = await generate({
     contents,
     config: { systemInstruction: SYSTEM_PROMPT },
   });
@@ -59,8 +89,7 @@ ${chatLog}
 
 ${from} mentioned you and asked: ${question}`;
 
-  const res = await ai.models.generateContent({
-    model: MODEL,
+  const res = await generate({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     config: {
       systemInstruction: `${SYSTEM_PROMPT}

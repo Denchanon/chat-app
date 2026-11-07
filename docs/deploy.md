@@ -32,6 +32,7 @@ Railway รัน server เป็น **process เดียวที่เป�
    |---|---|
    | `GEMINI_API_KEY` | key ของคุณ |
    | `GEMINI_MODEL` | `gemini-3.8-flash` |
+   | `GEMINI_FALLBACK_MODEL` | (ไม่บังคับ) model สำรองเมื่อ model หลักตอบ 503 |
    ไม่ต้องตั้ง `PORT` เพราะ Railway ตั้งให้อัตโนมัติ
 5. **Settings → Networking → Generate Domain** จะได้ URL หน้าตาประมาณ `https://chat-app-production-xxxx.up.railway.app`
 6. ทดสอบโดยเปิด `https://<URL>/health` ถ้าขึ้น `ok` แปลว่า server ทำงานแล้ว
@@ -67,6 +68,7 @@ Railway จะ deploy ใหม่ให้เอง ถ้ามีหลาย
 | จุดแดง และ console ขึ้น CORS | `CLIENT_ORIGIN` ไม่ตรงกับ URL ของ Vercel ทุกตัวอักษร |
 | `/health` เปิดไม่ขึ้น | ดู Deploy Logs ใน Railway และเช็กว่า Root Directory เป็น `server` |
 | AI Bot ตอบว่า "ไม่ว่าง" | ยังไม่ได้ตั้ง `GEMINI_API_KEY` หรือ key ผิด ดู log บรรทัด `[bot] error:` |
+| log ขึ้น `503 ... high demand` | Gemini คนใช้เยอะชั่วคราว (ไม่ใช่ bug) server ลองใหม่ให้เอง 2 ครั้ง ถ้ายังไม่หาย ให้ตั้ง `GEMINI_FALLBACK_MODEL` |
 
 ## ข้อควรรู้
 - **ข้อมูลอยู่ใน memory:** Railway restart หรือ deploy ใหม่เมื่อไหร่ รายชื่อ กลุ่ม และประวัติแชทกับ bot จะหายหมด ทุกคนต้อง login ใหม่ (ระบบออกแบบไว้แบบนี้อยู่แล้ว)

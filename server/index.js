@@ -142,7 +142,9 @@ io.on("connection", (socket) => {
       reply = await askBot(from, text); // HTTPS → Gemini API
     } catch (err) {
       console.error(`[bot] error: ${err.message}`);
-      reply = "ขอโทษครับ ตอนนี้ AI ไม่ว่าง ลองใหม่อีกครั้งนะ";
+      reply = err?.status === 503 || err?.status === 429
+        ? "ตอนนี้มีคนใช้ AI เยอะมาก รอสักครู่แล้วลองใหม่อีกครั้งนะ"
+        : "ขอโทษครับ ตอนนี้ AI ไม่ว่าง ลองใหม่อีกครั้งนะ";
     } finally {
       stopTyping();
       botBusy.delete(from);
