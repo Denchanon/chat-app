@@ -8,9 +8,20 @@ const PORT = process.env.PORT || 3001;
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // SP4: ไฟล์ใหญ่สุด 5 MB
 
-const httpServer = createServer();
+// Deploy: ตั้ง CLIENT_ORIGIN = URL ของหน้าเว็บ (เช่น https://chat-app.vercel.app) คั่นหลายอันด้วย ,
+// ไม่ตั้ง = รับทุก origin (ใช้ตอนรันใน LAN)
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN?.split(",").map((s) => s.trim()).filter(Boolean);
+
+// GET /health → ให้ Railway/Render เช็กว่า server ยังทำงานอยู่ (ข้อความแชทไม่ได้ใช้ HTTP — R2)
+const httpServer = createServer((req, res) => {
+  if (req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    return res.end("ok");
+  }
+  res.writeHead(404).end();
+});
 const io = new Server(httpServer, {
-  cors: { origin: "*" },
+  cors: { origin: CLIENT_ORIGIN?.length ? CLIENT_ORIGIN : "*" },
   maxHttpBufferSize: MAX_FILE_SIZE + 1024 * 1024, // ค่าเริ่มต้น 1 MB → ขยายให้ส่งไฟล์ได้ (+เผื่อ metadata)
 });
 

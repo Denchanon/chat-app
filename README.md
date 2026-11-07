@@ -6,6 +6,7 @@ Computer Network Term Project — Simple Chat Application (Socket Programming)
 - **Client:** React + Vite + socket.io-client (`client/`)
 - **Protocol:** ดู [`docs/protocol.md`](docs/protocol.md) ก่อนเขียนโค้ดทุกครั้ง
 - **Architecture (R1):** [`docs/architecture.md`](docs/architecture.md)
+- **Deploy (Vercel + Railway):** [`docs/deploy.md`](docs/deploy.md)
 
 ## วิธีรัน
 
